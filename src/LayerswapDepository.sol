@@ -1,0 +1,158 @@
+// SPDX-License-Identifier: LGPL-3.0-only
+pragma solidity ^0.8.29;
+
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
+import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
+
+/// @title LayerswapDepository
+/// @notice Forwards native and ERC20 tokens to whitelisted Layerswap receiver addresses.
+///         Only whitelisted addresses may receive funds. Owner manages the whitelist.
+/// @custom:version 1.0.0
+contract LayerswapDepository is Ownable, Pausable, ReentrancyGuard {
+    using SafeERC20 for IERC20;
+    using EnumerableSet for EnumerableSet.AddressSet;
+
+    EnumerableSet.AddressSet private _whitelist;
+
+    event AddressWhitelisted(address indexed addr);
+    event AddressRemovedFromWhitelist(address indexed addr);
+    event AddressUpdatedInWhitelist(address indexed oldAddr, address indexed newAddr);
+    /// @dev token is address(0) for native deposits
+    event Deposited(bytes32 indexed id, address indexed token, uint256 amount);
+
+    error ZeroAddress();
+    error ZeroAmount();
+    error NotWhitelisted();
+    error AlreadyWhitelisted();
+    error TransferFailed();
+    error InvalidReceiver();
+    error BatchTooLarge();
+
+    uint256 private constant MAX_BATCH_SIZE = 200;
+
+    /// @param _owner Initial contract owner
+    /// @param _initialAddresses Initial set of whitelisted receiver addresses
+    constructor(address _owner, address[] memory _initialAddresses) Ownable(_owner) {
+        uint256 len = _initialAddresses.length;
+        for (uint256 i; i < len;) {
+            _addToWhitelist(_initialAddresses[i]);
+            unchecked {
+                ++i;
+            }
+        }
+    }
+
+    //////////////////////////////////////////////////////////////
+    //                      DEPOSIT LOGIC                       //
+    //////////////////////////////////////////////////////////////
+
+    /// @notice Forwards native tokens to a whitelisted receiver
+    /// @param id Unique identifier for this deposit (correlates with off-chain order)
+    /// @param receiver Whitelisted address to receive the funds
+    function depositNative(bytes32 id, address receiver) external payable nonReentrant whenNotPaused {
+        if (!_whitelist.contains(receiver)) revert NotWhitelisted();
+        if (msg.value == 0) revert ZeroAmount();
+
+        // Emit before external call (CEI pattern)
+        emit Deposited(id, address(0), msg.value);
+
+        (bool success,) = receiver.call{value: msg.value}("");
+        if (!success) revert TransferFailed();
+    }
+
+    /// @notice Forwards ERC20 tokens from caller to a whitelisted receiver.
+    ///         In LI.FI context: the Diamond (facet) pulls tokens from the user,
+    ///         approves this contract, then calls this function. msg.sender = Diamond.
+    ///         In standalone context: caller approves this contract, then calls directly.
+    /// @param id Unique identifier for this deposit (correlates with off-chain order)
+    /// @param token ERC20 token address
+    /// @param receiver Whitelisted address to receive the funds
+    /// @param amount Amount of tokens to forward
+    function depositERC20(bytes32 id, address token, address receiver, uint256 amount)
+        external
+        nonReentrant
+        whenNotPaused
+    {
+        if (token == address(0)) revert ZeroAddress();
+        if (!_whitelist.contains(receiver)) revert NotWhitelisted();
+        if (amount == 0) revert ZeroAmount();
+
+        // Emit before external call (CEI pattern)
+        emit Deposited(id, token, amount);
+
+        // Pull from caller (Diamond or EOA) and forward directly to receiver
+        IERC20(token).safeTransferFrom(msg.sender, receiver, amount);
+    }
+
+    //////////////////////////////////////////////////////////////
+    //                    WHITELIST MANAGEMENT                  //
+    //////////////////////////////////////////////////////////////
+
+    /// @notice Add a single address to the whitelist
+    function addToWhitelist(address addr) external onlyOwner {
+        _addToWhitelist(addr);
+    }
+
+    /// @notice Add multiple addresses to the whitelist in one tx
+    function addToWhitelistBatch(address[] calldata addrs) external onlyOwner {
+        uint256 len = addrs.length;
+        if (len > MAX_BATCH_SIZE) revert BatchTooLarge();
+        for (uint256 i; i < len;) {
+            _addToWhitelist(addrs[i]);
+            unchecked {
+                ++i;
+            }
+        }
+    }
+
+    /// @notice Remove an address from the whitelist
+    function removeFromWhitelist(address addr) external onlyOwner {
+        if (!_whitelist.remove(addr)) revert NotWhitelisted();
+        emit AddressRemovedFromWhitelist(addr);
+    }
+
+    /// @notice Replace an existing whitelisted address with a new one atomically
+    function updateWhitelistedAddress(address oldAddr, address newAddr) external onlyOwner {
+        if (!_whitelist.remove(oldAddr)) revert NotWhitelisted();
+        if (newAddr == address(0)) revert ZeroAddress();
+        if (!_whitelist.add(newAddr)) revert AlreadyWhitelisted();
+        emit AddressUpdatedInWhitelist(oldAddr, newAddr);
+    }
+
+    /// @notice Returns all currently whitelisted addresses
+    function getWhitelistedAddresses() external view returns (address[] memory) {
+        return _whitelist.values();
+    }
+
+    /// @notice Returns true if the address is whitelisted
+    function isWhitelisted(address addr) external view returns (bool) {
+        return _whitelist.contains(addr);
+    }
+
+    //////////////////////////////////////////////////////////////
+    //                         PAUSABLE                         //
+    //////////////////////////////////////////////////////////////
+
+    function pause() external onlyOwner {
+        _pause();
+    }
+
+    function unpause() external onlyOwner {
+        _unpause();
+    }
+
+    //////////////////////////////////////////////////////////////
+    //                        INTERNALS                         //
+    //////////////////////////////////////////////////////////////
+
+    function _addToWhitelist(address addr) internal {
+        if (addr == address(0)) revert ZeroAddress();
+        if (addr == address(this)) revert InvalidReceiver();
+        if (!_whitelist.add(addr)) revert AlreadyWhitelisted();
+        emit AddressWhitelisted(addr);
+    }
+}
