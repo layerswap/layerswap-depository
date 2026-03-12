@@ -62,24 +62,6 @@ contract LayerswapDepositoryGasTest is Test {
         depository.updateWhitelistedAddress(receiver, newAddr);
     }
 
-    function test_gas_addToWhitelistBatch_10() public {
-        address[] memory addrs = _makeAddrs(10);
-        vm.prank(owner);
-        depository.addToWhitelistBatch(addrs);
-    }
-
-    function test_gas_addToWhitelistBatch_50() public {
-        address[] memory addrs = _makeAddrs(50);
-        vm.prank(owner);
-        depository.addToWhitelistBatch(addrs);
-    }
-
-    function test_gas_addToWhitelistBatch_200() public {
-        address[] memory addrs = _makeAddrs(200);
-        vm.prank(owner);
-        depository.addToWhitelistBatch(addrs);
-    }
-
     // ── Deployment cost ──────────────────────────────────────────────────────
 
     function test_gas_deployment_emptyWhitelist() public {
@@ -87,15 +69,10 @@ contract LayerswapDepositoryGasTest is Test {
     }
 
     function test_gas_deployment_10Addresses() public {
-        new LayerswapDepository(owner, _makeAddrs(10));
-    }
-
-    // ── Helpers ──────────────────────────────────────────────────────────────
-
-    function _makeAddrs(uint256 n) internal pure returns (address[] memory addrs) {
-        addrs = new address[](n);
-        for (uint256 i; i < n; ++i) {
+        address[] memory addrs = new address[](10);
+        for (uint256 i; i < 10; ++i) {
             addrs[i] = address(uint160(uint256(keccak256(abi.encode("addr", i + 1000)))));
         }
+        new LayerswapDepository(owner, addrs);
     }
 }

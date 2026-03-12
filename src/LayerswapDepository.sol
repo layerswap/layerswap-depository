@@ -30,9 +30,6 @@ contract LayerswapDepository is Ownable, Pausable, ReentrancyGuard {
     error AlreadyWhitelisted();
     error TransferFailed();
     error InvalidReceiver();
-    error BatchTooLarge();
-
-    uint256 private constant MAX_BATCH_SIZE = 200;
 
     /// @param _owner Initial contract owner
     /// @param _initialAddresses Initial set of whitelisted receiver addresses
@@ -65,9 +62,7 @@ contract LayerswapDepository is Ownable, Pausable, ReentrancyGuard {
     }
 
     /// @notice Forwards ERC20 tokens from caller to a whitelisted receiver.
-    ///         In LI.FI context: the Diamond (facet) pulls tokens from the user,
-    ///         approves this contract, then calls this function. msg.sender = Diamond.
-    ///         In standalone context: caller approves this contract, then calls directly.
+    ///         Caller must approve this contract before calling.
     /// @param id Unique identifier for this deposit (correlates with off-chain order)
     /// @param token ERC20 token address
     /// @param receiver Whitelisted address to receive the funds
@@ -84,7 +79,6 @@ contract LayerswapDepository is Ownable, Pausable, ReentrancyGuard {
         // Emit before external call (CEI pattern)
         emit Deposited(id, token, amount);
 
-        // Pull from caller (Diamond or EOA) and forward directly to receiver
         IERC20(token).safeTransferFrom(msg.sender, receiver, amount);
     }
 
@@ -95,18 +89,6 @@ contract LayerswapDepository is Ownable, Pausable, ReentrancyGuard {
     /// @notice Add a single address to the whitelist
     function addToWhitelist(address addr) external onlyOwner {
         _addToWhitelist(addr);
-    }
-
-    /// @notice Add multiple addresses to the whitelist in one tx
-    function addToWhitelistBatch(address[] calldata addrs) external onlyOwner {
-        uint256 len = addrs.length;
-        if (len > MAX_BATCH_SIZE) revert BatchTooLarge();
-        for (uint256 i; i < len;) {
-            _addToWhitelist(addrs[i]);
-            unchecked {
-                ++i;
-            }
-        }
     }
 
     /// @notice Remove an address from the whitelist

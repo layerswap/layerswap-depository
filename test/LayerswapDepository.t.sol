@@ -157,19 +157,6 @@ contract LayerswapDepositoryTest is Test {
         depository.addToWhitelist(receiver);
     }
 
-    function test_addToWhitelistBatch() public {
-        address a = makeAddr("a");
-        address b = makeAddr("b");
-        address[] memory addrs = new address[](2);
-        addrs[0] = a;
-        addrs[1] = b;
-
-        vm.prank(owner);
-        depository.addToWhitelistBatch(addrs);
-        assertTrue(depository.isWhitelisted(a));
-        assertTrue(depository.isWhitelisted(b));
-    }
-
     function test_removeFromWhitelist() public {
         vm.prank(owner);
         depository.removeFromWhitelist(receiver);
