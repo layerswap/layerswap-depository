@@ -203,6 +203,12 @@ contract LayerswapDepositoryTest is Test {
         depository.updateWhitelistedAddress(receiver, second);
     }
 
+    function test_updateWhitelistedAddress_revertsNewIsContractSelf() public {
+        vm.prank(owner);
+        vm.expectRevert(LayerswapDepository.InvalidReceiver.selector);
+        depository.updateWhitelistedAddress(receiver, address(depository));
+    }
+
     function test_getWhitelistedAddresses() public view {
         address[] memory addrs = depository.getWhitelistedAddresses();
         assertEq(addrs.length, 1);

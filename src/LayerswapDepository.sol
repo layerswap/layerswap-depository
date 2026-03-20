@@ -98,9 +98,12 @@ contract LayerswapDepository is Ownable, Pausable, ReentrancyGuard {
     }
 
     /// @notice Replace an existing whitelisted address with a new one atomically
+    /// @param oldAddr Currently whitelisted address to replace
+    /// @param newAddr New address to whitelist in its place
     function updateWhitelistedAddress(address oldAddr, address newAddr) external onlyOwner {
         if (!_whitelist.remove(oldAddr)) revert NotWhitelisted();
         if (newAddr == address(0)) revert ZeroAddress();
+        if (newAddr == address(this)) revert InvalidReceiver();
         if (!_whitelist.add(newAddr)) revert AlreadyWhitelisted();
         emit AddressUpdatedInWhitelist(oldAddr, newAddr);
     }
@@ -119,10 +122,12 @@ contract LayerswapDepository is Ownable, Pausable, ReentrancyGuard {
     //                         PAUSABLE                         //
     //////////////////////////////////////////////////////////////
 
+    /// @notice Pauses all deposits. Only callable by owner.
     function pause() external onlyOwner {
         _pause();
     }
 
+    /// @notice Unpauses deposits. Only callable by owner.
     function unpause() external onlyOwner {
         _unpause();
     }
@@ -131,6 +136,8 @@ contract LayerswapDepository is Ownable, Pausable, ReentrancyGuard {
     //                        INTERNALS                         //
     //////////////////////////////////////////////////////////////
 
+    /// @dev Validates and adds `addr` to the whitelist. Reverts on zero address,
+    ///      self-address, or duplicate. Emits {AddressWhitelisted}.
     function _addToWhitelist(address addr) internal {
         if (addr == address(0)) revert ZeroAddress();
         if (addr == address(this)) revert InvalidReceiver();

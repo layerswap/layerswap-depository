@@ -43,7 +43,7 @@ User
 | Library | Version |
 |---------|---------|
 | [OpenZeppelin Contracts](https://github.com/OpenZeppelin/openzeppelin-contracts) | v5.6.1 |
-| [forge-std](https://github.com/foundry-rs/forge-std) | latest |
+| [forge-std](https://github.com/foundry-rs/forge-std) | v1.15.0 |
 
 ## Setup
 
@@ -151,8 +151,8 @@ forge verify-contract <DEPLOYED_ADDRESS> \
 cast send <CONTRACT> "addToWhitelist(address)" <ADDR> \
   --rpc-url mainnet --private-key $PRIVATE_KEY
 
-# Add multiple at once
-cast send <CONTRACT> "addToWhitelistBatch(address[])" "[0x...,0x...]" \
+# Replace an address atomically
+cast send <CONTRACT> "updateWhitelistedAddress(address,address)" <OLD_ADDR> <NEW_ADDR> \
   --rpc-url mainnet --private-key $PRIVATE_KEY
 
 # Remove
