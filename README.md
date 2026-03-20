@@ -168,4 +168,4 @@ cast send <CONTRACT> "pause()" --rpc-url mainnet --private-key $PRIVATE_KEY
 
 ## License
 
-LGPL-3.0-only
+MIT
