@@ -22,7 +22,7 @@ contract LayerswapDepository is Ownable, Pausable, ReentrancyGuard {
     event AddressRemovedFromWhitelist(address indexed addr);
     event AddressUpdatedInWhitelist(address indexed oldAddr, address indexed newAddr);
     /// @dev token is address(0) for native deposits
-    event Deposited(bytes32 indexed id, address indexed token, uint256 amount);
+    event Deposited(bytes32 indexed id, address indexed token, address indexed receiver, uint256 amount);
 
     error ZeroAddress();
     error ZeroAmount();
@@ -55,7 +55,7 @@ contract LayerswapDepository is Ownable, Pausable, ReentrancyGuard {
         if (msg.value == 0) revert ZeroAmount();
 
         // Emit before external call (CEI pattern)
-        emit Deposited(id, address(0), msg.value);
+        emit Deposited(id, address(0), receiver, msg.value);
 
         (bool success,) = receiver.call{value: msg.value}("");
         if (!success) revert TransferFailed();
@@ -77,7 +77,7 @@ contract LayerswapDepository is Ownable, Pausable, ReentrancyGuard {
         if (amount == 0) revert ZeroAmount();
 
         // Emit before external call (CEI pattern)
-        emit Deposited(id, token, amount);
+        emit Deposited(id, token, receiver, amount);
 
         IERC20(token).safeTransferFrom(msg.sender, receiver, amount);
     }

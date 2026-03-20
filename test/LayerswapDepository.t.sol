@@ -46,8 +46,8 @@ contract LayerswapDepositoryTest is Test {
     }
 
     function test_depositNative_emitsEvent() public {
-        vm.expectEmit(true, true, false, true);
-        emit LayerswapDepository.Deposited(ID, address(0), AMOUNT);
+        vm.expectEmit(true, true, true, true);
+        emit LayerswapDepository.Deposited(ID, address(0), receiver, AMOUNT);
         vm.prank(user);
         depository.depositNative{value: AMOUNT}(ID, receiver);
     }
@@ -91,8 +91,8 @@ contract LayerswapDepositoryTest is Test {
     function test_depositERC20_emitsEvent() public {
         _approveDepository(user, AMOUNT);
 
-        vm.expectEmit(true, true, false, true);
-        emit LayerswapDepository.Deposited(ID, address(token), AMOUNT);
+        vm.expectEmit(true, true, true, true);
+        emit LayerswapDepository.Deposited(ID, address(token), receiver, AMOUNT);
         vm.prank(user);
         depository.depositERC20(ID, address(token), receiver, AMOUNT);
     }
