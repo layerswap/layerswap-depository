@@ -1,6 +1,6 @@
 # LayerswapDepository
 
-A Solidity smart contract that forwards native and ERC20 tokens to whitelisted Layerswap receiver addresses, designed for integration with the [LI.FI](https://li.fi) protocol.
+A Solidity smart contract that forwards native and ERC20 tokens to whitelisted Layerswap receiver addresses.
 
 ## Overview
 
@@ -20,7 +20,7 @@ A Solidity smart contract that forwards native and ERC20 tokens to whitelisted L
 |------|-------------|
 | [`src/LayerswapDepository.sol`](src/LayerswapDepository.sol) | Main contract |
 | [`script/DeployLayerswapDepository.s.sol`](script/DeployLayerswapDepository.s.sol) | Deployment script |
-| [`test/LayerswapDepository.t.sol`](test/LayerswapDepository.t.sol) | Unit + fuzz tests (26 tests) |
+| [`test/LayerswapDepository.t.sol`](test/LayerswapDepository.t.sol) | Unit + fuzz tests (27 tests) |
 | [`test/LayerswapDepository.gas.t.sol`](test/LayerswapDepository.gas.t.sol) | Gas benchmarks |
 
 ## Architecture
@@ -53,7 +53,7 @@ curl -L https://foundry.paradigm.xyz | bash && foundryup
 
 # Clone and install dependencies
 git clone <repo>
-cd li-fi-layerswap
+cd layerswap-depository
 forge install
 ```
 
