@@ -4,6 +4,30 @@ pragma solidity ^0.8.29;
 import {Test} from "forge-std/Test.sol";
 import {LayerswapDepository} from "../src/LayerswapDepository.sol";
 import {ERC20Mock} from "@openzeppelin/contracts/mocks/token/ERC20Mock.sol";
+import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+
+/// @dev Mock ERC20 that takes a percentage fee on every transfer
+contract FeeOnTransferToken is ERC20 {
+    uint256 public feeBps; // e.g. 500 = 5%
+
+    constructor(uint256 _feeBps) ERC20("FeeToken", "FEE") {
+        feeBps = _feeBps;
+    }
+
+    function mint(address to, uint256 amount) external {
+        _mint(to, amount);
+    }
+
+    function _update(address from, address to, uint256 amount) internal override {
+        if (from != address(0) && to != address(0)) {
+            uint256 fee = (amount * feeBps) / 10_000;
+            super._update(from, to, amount - fee);
+            if (fee > 0) super._update(from, address(0), fee); // burn fee
+        } else {
+            super._update(from, to, amount);
+        }
+    }
+}
 
 contract LayerswapDepositoryTest is Test {
     LayerswapDepository public depository;
@@ -136,6 +160,44 @@ contract LayerswapDepositoryTest is Test {
     }
 
     //////////////////////////////////////////////////////////////
+    //              depositERC20 — fee-on-transfer              //
+    //////////////////////////////////////////////////////////////
+
+    function test_depositERC20_feeOnTransfer_emitsActualReceived() public {
+        FeeOnTransferToken feeToken = new FeeOnTransferToken(500); // 5% fee
+        feeToken.mint(user, 100 ether);
+
+        vm.prank(user);
+        feeToken.approve(address(depository), AMOUNT);
+
+        uint256 expectedReceived = AMOUNT - (AMOUNT * 500) / 10_000; // 0.95 ether
+
+        vm.expectEmit(true, true, true, true);
+        emit LayerswapDepository.Deposited(ID, address(feeToken), receiver, expectedReceived);
+        vm.prank(user);
+        depository.depositERC20(ID, address(feeToken), receiver, AMOUNT);
+
+        assertEq(feeToken.balanceOf(receiver), expectedReceived);
+    }
+
+    function test_depositERC20_feeOnTransfer_balanceDelta() public {
+        FeeOnTransferToken feeToken = new FeeOnTransferToken(1000); // 10% fee
+        feeToken.mint(user, 100 ether);
+
+        vm.prank(user);
+        feeToken.approve(address(depository), AMOUNT);
+
+        uint256 balBefore = feeToken.balanceOf(receiver);
+        vm.prank(user);
+        depository.depositERC20(ID, address(feeToken), receiver, AMOUNT);
+
+        uint256 actualReceived = feeToken.balanceOf(receiver) - balBefore;
+        uint256 expectedReceived = AMOUNT - (AMOUNT * 1000) / 10_000; // 0.9 ether
+        assertEq(actualReceived, expectedReceived);
+        assertEq(feeToken.balanceOf(address(depository)), 0);
+    }
+
+    //////////////////////////////////////////////////////////////
     //                   Whitelist management                   //
     //////////////////////////////////////////////////////////////
 
@@ -201,6 +263,12 @@ contract LayerswapDepositoryTest is Test {
         vm.prank(owner);
         vm.expectRevert(LayerswapDepository.AlreadyWhitelisted.selector);
         depository.updateWhitelistedAddress(receiver, second);
+    }
+
+    function test_updateWhitelistedAddress_revertsSameAddress() public {
+        vm.prank(owner);
+        vm.expectRevert(LayerswapDepository.SameAddress.selector);
+        depository.updateWhitelistedAddress(receiver, receiver);
     }
 
     function test_updateWhitelistedAddress_revertsNewIsContractSelf() public {

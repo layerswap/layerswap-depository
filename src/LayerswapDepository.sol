@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.29;
 
+import {Ownable2Step} from "@openzeppelin/contracts/access/Ownable2Step.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {Pausable} from "@openzeppelin/contracts/utils/Pausable.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
@@ -12,7 +13,7 @@ import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet
 /// @notice Forwards native and ERC20 tokens to whitelisted Layerswap receiver addresses.
 ///         Only whitelisted addresses may receive funds. Owner manages the whitelist.
 /// @custom:version 1.0.0
-contract LayerswapDepository is Ownable, Pausable, ReentrancyGuard {
+contract LayerswapDepository is Ownable2Step, Pausable, ReentrancyGuard {
     using SafeERC20 for IERC20;
     using EnumerableSet for EnumerableSet.AddressSet;
 
@@ -30,6 +31,7 @@ contract LayerswapDepository is Ownable, Pausable, ReentrancyGuard {
     error AlreadyWhitelisted();
     error TransferFailed();
     error InvalidReceiver();
+    error SameAddress();
 
     /// @param _owner Initial contract owner
     /// @param _initialAddresses Initial set of whitelisted receiver addresses
@@ -76,10 +78,11 @@ contract LayerswapDepository is Ownable, Pausable, ReentrancyGuard {
         if (!_whitelist.contains(receiver)) revert NotWhitelisted();
         if (amount == 0) revert ZeroAmount();
 
-        // Emit before external call (CEI pattern)
-        emit Deposited(id, token, receiver, amount);
-
+        uint256 balBefore = IERC20(token).balanceOf(receiver);
         IERC20(token).safeTransferFrom(msg.sender, receiver, amount);
+        uint256 received = IERC20(token).balanceOf(receiver) - balBefore;
+
+        emit Deposited(id, token, receiver, received);
     }
 
     //////////////////////////////////////////////////////////////
@@ -101,6 +104,7 @@ contract LayerswapDepository is Ownable, Pausable, ReentrancyGuard {
     /// @param oldAddr Currently whitelisted address to replace
     /// @param newAddr New address to whitelist in its place
     function updateWhitelistedAddress(address oldAddr, address newAddr) external onlyOwner {
+        if (oldAddr == newAddr) revert SameAddress();
         if (!_whitelist.remove(oldAddr)) revert NotWhitelisted();
         if (newAddr == address(0)) revert ZeroAddress();
         if (newAddr == address(this)) revert InvalidReceiver();
