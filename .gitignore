@@ -1,21 +1,26 @@
-# Foundry
-cache/
-out/
-broadcast/
-.gas-snapshot
+# ── EVM / Foundry ─────────────────────────────────────────────────────────────
+evm/cache/
+evm/out/
+evm/broadcast/
+evm/.gas-snapshot
 
-# Dependencies (installed via forge install)
-lib/
+# ── Solana / Anchor ────────────────────────────────────────────────────────────
+solana/.anchor/
+solana/target/
+solana/node_modules/
 
-# Environment variables
+# ── Environment variables ──────────────────────────────────────────────────────
 .env
 .env.*
-!.env.example
+!evm/.env.example
 
-# IDE
+# ── IDE ────────────────────────────────────────────────────────────────────────
 .vscode/
 .idea/
 
-# OS
+# ── Tooling ────────────────────────────────────────────────────────────────────
+.claude/
+
+# ── OS ─────────────────────────────────────────────────────────────────────────
 .DS_Store
 Thumbs.db
