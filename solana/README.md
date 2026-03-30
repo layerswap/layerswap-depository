@@ -11,10 +11,11 @@ An Anchor program that forwards SOL and SPL tokens to whitelisted Layerswap rece
 - **Whitelist-gated** — receiver must have a `WhitelistEntry` PDA; existence of the PDA = whitelisted
 - **Dual-asset** — supports both native SOL and any SPL token
 - **Order-correlated** — every deposit includes a `[u8; 32]` id that maps to an off-chain Layerswap order
-- **Pausable** — authority can halt all deposits in an emergency
+- **Pausable** — authority can halt all deposits in an emergency (with idempotency guards)
 - **Non-custodial** — program holds zero balance at all times
 - **Fee-on-transfer aware** — SPL deposits use balance-delta to emit the actual received amount
 - **Two-step authority transfer** — ownership transfer requires acceptance by the new authority
+- **transfer_checked** — SPL transfers validate mint and decimals for Token-2022 forward-compatibility
 
 ## Program Structure
 
@@ -50,11 +51,11 @@ src/
 |-------------|--------|-------------|
 | `initialize(authority)` | payer | One-time setup |
 | `deposit_sol(id, amount)` | depositor | Forward SOL |
-| `deposit_spl(id, amount)` | depositor | Forward SPL tokens |
+| `deposit_spl(id, amount)` | depositor | Forward SPL tokens (uses `transfer_checked`) |
 | `add_receiver` | authority | Whitelist a receiver |
 | `remove_receiver` | authority | Remove a receiver |
 | `update_receiver` | authority | Atomic swap of receivers |
-| `pause` / `unpause` | authority | Emergency halt |
+| `pause` / `unpause` | authority | Emergency halt (rejects duplicate calls) |
 | `transfer_authority(new)` | authority | Step 1 of ownership transfer |
 | `accept_authority` | pending authority | Step 2 — accept and take ownership |
 
@@ -63,9 +64,9 @@ src/
 | Tool | Version |
 |------|---------|
 | [Rust](https://rustup.rs) | stable |
-| [Solana CLI](https://docs.solana.com/cli/install-solana-cli-tools) | ≥ 1.18 |
-| [Anchor CLI](https://www.anchor-lang.com/docs/installation) | 0.30.1 |
-| Node.js + npm | ≥ 18 |
+| [Solana CLI (Agave)](https://docs.anza.xyz/cli/install) | >= 3.0 |
+| [Anchor CLI](https://www.anchor-lang.com/docs/installation) | 0.32.1 |
+| Node.js + npm | >= 18 |
 
 ## Setup
 
@@ -76,11 +77,11 @@ All commands below must be run from the `solana/` directory.
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 
 # Install Solana CLI
-sh -c "$(curl -sSfL https://release.solana.com/stable/install)"
+agave-install init
 
 # Install Anchor CLI
 cargo install --git https://github.com/coral-xyz/anchor avm --locked
-avm install 0.30.1 && avm use 0.30.1
+avm install 0.32.1 && avm use 0.32.1
 
 # Install Node dependencies
 npm install
@@ -96,15 +97,16 @@ After the first build, sync the program ID:
 
 ```bash
 anchor keys sync
+anchor build
 ```
 
-This updates the `declare_id!` in `src/lib.rs` and `[programs.localnet]` in `Anchor.toml` to match the generated keypair.
+This updates the `declare_id!` in `src/lib.rs` and `Anchor.toml` to match the generated keypair.
 
 ## Test
 
 ```bash
 # Starts a local validator, deploys the program, and runs all tests
-anchor test
+anchor test --provider.cluster localnet
 ```
 
 Tests cover all 15 cases: initialize, add/remove/update receivers, deposit SOL, deposit SPL, pause/unpause, two-step authority transfer, unauthorized access.
@@ -112,6 +114,10 @@ Tests cover all 15 cases: initialize, add/remove/update receivers, deposit SOL, 
 ## Deploy
 
 ```bash
+# Fund your wallet (devnet)
+solana config set --url devnet
+solana airdrop 2 && solana airdrop 2
+
 # Deploy to devnet
 anchor deploy --provider.cluster devnet
 
@@ -124,7 +130,7 @@ After deployment, initialize the program:
 ```typescript
 await program.methods
   .initialize(authorityPublicKey)
-  .accounts({ payer: wallet.publicKey, config: configPda, systemProgram })
+  .accounts({ payer: wallet.publicKey })
   .rpc();
 ```
 
