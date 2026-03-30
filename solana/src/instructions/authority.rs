@@ -17,6 +17,8 @@ pub struct TransferAuthority<'info> {
 }
 
 pub fn transfer_handler(ctx: Context<TransferAuthority>, new_authority: Pubkey) -> Result<()> {
+    require!(new_authority != Pubkey::default(), DepositoryError::InvalidAuthority);
+    require!(new_authority != crate::ID, DepositoryError::InvalidAuthority);
     ctx.accounts.config.pending_authority = Some(new_authority);
     Ok(())
 }

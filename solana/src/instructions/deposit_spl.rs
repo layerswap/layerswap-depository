@@ -1,7 +1,7 @@
 use anchor_lang::prelude::*;
 use anchor_spl::{
     associated_token::AssociatedToken,
-    token::{self, Mint, Token, TokenAccount, Transfer as SplTransfer},
+    token::{self, Mint, Token, TokenAccount, TransferChecked},
 };
 use crate::errors::DepositoryError;
 use crate::events::Deposited;
@@ -61,16 +61,18 @@ pub fn handler(ctx: Context<DepositSpl>, id: [u8; 32], amount: u64) -> Result<()
 
     let before = ctx.accounts.receiver_ata.amount;
 
-    token::transfer(
+    token::transfer_checked(
         CpiContext::new(
             ctx.accounts.token_program.to_account_info(),
-            SplTransfer {
+            TransferChecked {
                 from: ctx.accounts.depositor_ata.to_account_info(),
                 to: ctx.accounts.receiver_ata.to_account_info(),
                 authority: ctx.accounts.depositor.to_account_info(),
+                mint: ctx.accounts.mint.to_account_info(),
             },
         ),
         amount,
+        ctx.accounts.mint.decimals,
     )?;
 
     // Reload to capture actual received amount (handles fee-on-transfer tokens).

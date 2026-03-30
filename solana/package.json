@@ -3,8 +3,8 @@
     "test": "npx ts-mocha -p ./tsconfig.json -t 1000000 tests/**/*.ts"
   },
   "dependencies": {
-    "@coral-xyz/anchor": "^0.30.1",
-    "@solana/spl-token": "^0.1.8",
+    "@coral-xyz/anchor": "^0.32.1",
+    "@solana/spl-token": "^0.4.14",
     "@solana/web3.js": "^1.98.0"
   },
   "devDependencies": {
@@ -13,7 +13,7 @@
     "@types/mocha": "^10.0.10",
     "@types/node": "^22.0.0",
     "chai": "^4.5.0",
-    "mocha": "^7.2.0",
+    "mocha": "^11.3.0",
     "ts-mocha": "^10.0.0",
     "typescript": "^5.7.3"
   }

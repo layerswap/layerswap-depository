@@ -18,12 +18,14 @@ pub struct SetPaused<'info> {
 }
 
 pub fn pause_handler(ctx: Context<SetPaused>) -> Result<()> {
+    require!(!ctx.accounts.config.paused, DepositoryError::AlreadyPaused);
     ctx.accounts.config.paused = true;
     emit!(Paused {});
     Ok(())
 }
 
 pub fn unpause_handler(ctx: Context<SetPaused>) -> Result<()> {
+    require!(ctx.accounts.config.paused, DepositoryError::NotPaused);
     ctx.accounts.config.paused = false;
     emit!(Unpaused {});
     Ok(())

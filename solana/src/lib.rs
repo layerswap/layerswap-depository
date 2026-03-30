@@ -5,14 +5,17 @@ pub mod events;
 pub mod instructions;
 pub mod state;
 
-use instructions::{
-    authority::{AcceptAuthority, TransferAuthority},
-    pause::SetPaused,
-    *,
-};
+pub use instructions::add_receiver::*;
+pub use instructions::authority::*;
+pub use instructions::deposit_sol::*;
+pub use instructions::deposit_spl::*;
+pub use instructions::initialize::*;
+pub use instructions::pause::*;
+pub use instructions::remove_receiver::*;
+pub use instructions::update_receiver::*;
 
 // NOTE: Run `anchor keys sync` after the first `anchor build` to update this ID.
-declare_id!("Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS");
+declare_id!("CRhRGdDA2y966AqbAoaeHMLVLK43Bzhwk3vdsSaEkJLe");
 
 #[program]
 pub mod layerswap_depository {

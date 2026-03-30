@@ -18,4 +18,10 @@ pub enum DepositoryError {
     Unauthorized,
     #[msg("No pending authority transfer in progress")]
     NoPendingAuthority,
+    #[msg("Deposits are already paused")]
+    AlreadyPaused,
+    #[msg("Deposits are not paused")]
+    NotPaused,
+    #[msg("Authority address is invalid (zero address or program ID)")]
+    InvalidAuthority,
 }
