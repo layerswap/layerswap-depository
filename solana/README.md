@@ -1,6 +1,6 @@
 # LayerswapDepository — Solana
 
-An Anchor program that forwards SOL and SPL tokens to whitelisted Layerswap receiver addresses, matching the responsibilities of the EVM depository.
+An Anchor program that forwards SOL and SPL/Token-2022 tokens to whitelisted Layerswap receiver addresses, matching the responsibilities of the EVM depository.
 
 ## Overview
 
@@ -9,33 +9,38 @@ An Anchor program that forwards SOL and SPL tokens to whitelisted Layerswap rece
 ### Key properties
 
 - **Whitelist-gated** — receiver must have a `WhitelistEntry` PDA; existence of the PDA = whitelisted
-- **Dual-asset** — supports both native SOL and any SPL token
+- **Dual-asset** — supports native SOL and any SPL Token or Token-2022 token
+- **Token-2022 ready** — supports transfer hooks (via remaining accounts), MemoTransfer (via memo CPI), and transfer fee tokens (via balance-delta)
 - **Order-correlated** — every deposit includes a `[u8; 32]` id that maps to an off-chain Layerswap order
 - **Pausable** — authority can halt all deposits in an emergency (with idempotency guards)
 - **Non-custodial** — program holds zero balance at all times
-- **Fee-on-transfer aware** — SPL deposits use balance-delta to emit the actual received amount
+- **Fee-on-transfer aware** — token deposits use balance-delta to emit the actual received amount
 - **Two-step authority transfer** — ownership transfer requires acceptance by the new authority
-- **transfer_checked** — SPL transfers validate mint and decimals for Token-2022 forward-compatibility
+- **transfer_checked** — token transfers validate mint and decimals
 
 ## Program Structure
 
 ```
-src/
-  lib.rs                  — program entry point, instruction declarations
-  errors.rs               — custom error codes
-  events.rs               — emitted events (Deposited, ReceiverAdded, ...)
-  state/
-    config.rs             — Config PDA  [seeds: "config"]
-    whitelist_entry.rs    — WhitelistEntry PDA  [seeds: "whitelist", receiver]
-  instructions/
-    initialize.rs         — one-time setup, creates Config PDA
-    deposit_sol.rs        — forward SOL to whitelisted receiver
-    deposit_spl.rs        — forward SPL tokens to whitelisted receiver
-    add_receiver.rs       — whitelist a new receiver (creates WhitelistEntry PDA)
-    remove_receiver.rs    — remove receiver (closes WhitelistEntry PDA)
-    update_receiver.rs    — atomically replace one receiver with another
-    pause.rs              — pause / unpause all deposits
-    authority.rs          — two-step authority transfer
+programs/
+  depository/
+    src/
+      lib.rs                  — program entry point, instruction declarations
+      errors.rs               — custom error codes
+      events.rs               — emitted events (Deposited, ReceiverAdded, ...)
+      state/
+        config.rs             — Config PDA  [seeds: "config"]
+        whitelist_entry.rs    — WhitelistEntry PDA  [seeds: "whitelist", receiver]
+      instructions/
+        initialize.rs         — one-time setup, creates Config PDA
+        deposit_native.rs     — forward SOL to whitelisted receiver
+        deposit_token.rs      — forward SPL/Token-2022 tokens to whitelisted receiver
+        add_receiver.rs       — whitelist a new receiver (creates WhitelistEntry PDA)
+        remove_receiver.rs    — remove receiver (closes WhitelistEntry PDA)
+        update_receiver.rs    — atomically replace one receiver with another
+        pause.rs              — pause / unpause all deposits
+        authority.rs          — two-step authority transfer
+  test-transfer-hook/
+    src/lib.rs                — minimal no-op transfer hook for testing
 ```
 
 ## PDAs
@@ -49,9 +54,9 @@ src/
 
 | Instruction | Signer | Description |
 |-------------|--------|-------------|
-| `initialize(authority)` | payer | One-time setup |
-| `deposit_sol(id, amount)` | depositor | Forward SOL |
-| `deposit_spl(id, amount)` | depositor | Forward SPL tokens (uses `transfer_checked`) |
+| `initialize(authority)` | payer (upgrade authority) | One-time setup |
+| `deposit_native(id, amount)` | depositor | Forward SOL |
+| `deposit_token(id, amount)` | depositor | Forward SPL/Token-2022 tokens (`transfer_checked`) |
 | `add_receiver` | authority | Whitelist a receiver |
 | `remove_receiver` | authority | Remove a receiver |
 | `update_receiver` | authority | Atomic swap of receivers |
@@ -93,23 +98,23 @@ npm install
 anchor build
 ```
 
-After the first build, sync the program ID:
+After the first build, sync the program ID across all clusters:
 
 ```bash
-anchor keys sync
+npm run keys:sync
 anchor build
 ```
 
-This updates the `declare_id!` in `src/lib.rs` and `Anchor.toml` to match the generated keypair.
+This updates `declare_id!` in `src/lib.rs` and all `[programs.*]` sections in `Anchor.toml` to match the generated keypair.
 
 ## Test
 
 ```bash
-# Starts a local validator, deploys the program, and runs all tests
-anchor test --provider.cluster localnet
+# Downloads SPL Memo (if needed), starts local validator, deploys, and runs all tests
+npm test
 ```
 
-Tests cover all 15 cases: initialize, add/remove/update receivers, deposit SOL, deposit SPL, pause/unpause, two-step authority transfer, unauthorized access.
+45 tests covering: initialize, add/remove/update receivers, deposit native, deposit SPL Token, deposit Token-2022, Token-2022 transfer fee, Token-2022 transfer hook, pause/unpause, two-step authority transfer, unauthorized access, account substitution attacks, input validation, and idempotency guards.
 
 ## Deploy
 
@@ -118,12 +123,14 @@ Tests cover all 15 cases: initialize, add/remove/update receivers, deposit SOL, 
 solana config set --url devnet
 solana airdrop 2 && solana airdrop 2
 
-# Deploy to devnet
-anchor deploy --provider.cluster devnet
+# Deploy program + IDL to devnet
+npm run deploy:devnet
 
-# Deploy to mainnet
-anchor deploy --provider.cluster mainnet
+# Deploy program + IDL to mainnet
+npm run deploy:mainnet
 ```
+
+`anchor deploy` uploads both the program binary and the IDL (on-chain interface definition) in one command. Only the depository is deployed — the test transfer hook is excluded.
 
 After deployment, initialize the program:
 
@@ -147,7 +154,7 @@ connection.onLogs(programId, (logs) => {
 });
 ```
 
-`mint = null` for SOL deposits (mirrors `token = address(0)` on EVM).
+`mint = null` for SOL deposits.
 
 ## License
 

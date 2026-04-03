@@ -5,7 +5,7 @@ use crate::events::Deposited;
 use crate::state::{Config, WhitelistEntry};
 
 #[derive(Accounts)]
-pub struct DepositSol<'info> {
+pub struct DepositNative<'info> {
     /// Sender of the SOL.
     #[account(mut)]
     pub depositor: Signer<'info>,
@@ -35,10 +35,9 @@ pub struct DepositSol<'info> {
 
 /// Forward SOL from `depositor` directly to a whitelisted `receiver`.
 /// Non-custodial: the program never holds funds.
-pub fn handler(ctx: Context<DepositSol>, id: [u8; 32], amount: u64) -> Result<()> {
+pub fn handler(ctx: Context<DepositNative>, id: [u8; 32], amount: u64) -> Result<()> {
     require!(amount > 0, DepositoryError::ZeroAmount);
 
-    // Emit before CPI (mirrors CEI pattern of the EVM contract).
     emit!(Deposited {
         id,
         mint: None,

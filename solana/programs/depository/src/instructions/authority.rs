@@ -1,5 +1,6 @@
 use anchor_lang::prelude::*;
 use crate::errors::DepositoryError;
+use crate::events::{AuthorityTransferAccepted, AuthorityTransferInitiated};
 use crate::state::Config;
 
 /// Step 1 of a two-step authority transfer: current authority nominates a successor.
@@ -20,6 +21,9 @@ pub fn transfer_handler(ctx: Context<TransferAuthority>, new_authority: Pubkey) 
     require!(new_authority != Pubkey::default(), DepositoryError::InvalidAuthority);
     require!(new_authority != crate::ID, DepositoryError::InvalidAuthority);
     ctx.accounts.config.pending_authority = Some(new_authority);
+
+    emit!(AuthorityTransferInitiated { new_authority });
+
     Ok(())
 }
 
@@ -40,7 +44,15 @@ pub struct AcceptAuthority<'info> {
 
 pub fn accept_handler(ctx: Context<AcceptAuthority>) -> Result<()> {
     let config = &mut ctx.accounts.config;
-    config.authority = config.pending_authority.unwrap();
+    let old_authority = config.authority;
+    let new_authority = config.pending_authority.unwrap();
+    config.authority = new_authority;
     config.pending_authority = None;
+
+    emit!(AuthorityTransferAccepted {
+        old_authority,
+        new_authority,
+    });
+
     Ok(())
 }

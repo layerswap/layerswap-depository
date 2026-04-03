@@ -6,10 +6,11 @@ resolution = true
 skip-lint = false
 
 [programs.devnet]
-layerswap_depository = "CRhRGdDA2y966AqbAoaeHMLVLK43Bzhwk3vdsSaEkJLe"
+layerswap_depository = "FhDGHkDWyGtmcmsQGcesFDvvNHgYJT5pu8ju3KrduPin"
 
 [programs.localnet]
-layerswap_depository = "CRhRGdDA2y966AqbAoaeHMLVLK43Bzhwk3vdsSaEkJLe"
+layerswap_depository = "FhDGHkDWyGtmcmsQGcesFDvvNHgYJT5pu8ju3KrduPin"
+test_transfer_hook = "3LX4wGbnhEt9ew5GkL98qcc5h6KzNDSSZ6LJBCKXy36p"
 
 [registry]
 url = "https://api.apr.dev"
@@ -19,7 +20,16 @@ cluster = "localnet"
 wallet = "~/.config/solana/id.json"
 
 [workspace]
-members = ["."]
+members = ["programs/depository", "programs/test-transfer-hook"]
 
 [scripts]
 test = "npx ts-mocha -p ./tsconfig.json -t 1000000 tests/**/*.ts"
+
+[test]
+startup_wait = 10000
+shutdown_wait = 2000
+upgradeable = true
+
+[[test.genesis]]
+address = "MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr"
+program = "target/deploy/spl_memo_v2.so"

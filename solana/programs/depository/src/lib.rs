@@ -1,4 +1,5 @@
 use anchor_lang::prelude::*;
+use solana_security_txt::security_txt;
 
 pub mod errors;
 pub mod events;
@@ -7,15 +8,21 @@ pub mod state;
 
 pub use instructions::add_receiver::*;
 pub use instructions::authority::*;
-pub use instructions::deposit_sol::*;
-pub use instructions::deposit_spl::*;
+pub use instructions::deposit_native::*;
+pub use instructions::deposit_token::*;
 pub use instructions::initialize::*;
 pub use instructions::pause::*;
 pub use instructions::remove_receiver::*;
 pub use instructions::update_receiver::*;
 
 // NOTE: Run `anchor keys sync` after the first `anchor build` to update this ID.
-declare_id!("CRhRGdDA2y966AqbAoaeHMLVLK43Bzhwk3vdsSaEkJLe");
+declare_id!("FhDGHkDWyGtmcmsQGcesFDvvNHgYJT5pu8ju3KrduPin");
+
+#[cfg(not(feature = "no-entrypoint"))]
+security_txt! {
+    name: "Layerswap Depository",
+    source_code: "https://github.com/layerswap/layerswap-depository"
+}
 
 #[program]
 pub mod layerswap_depository {
@@ -28,14 +35,15 @@ pub mod layerswap_depository {
     }
 
     /// Forward SOL from depositor directly to a whitelisted receiver.
-    pub fn deposit_sol(ctx: Context<DepositSol>, id: [u8; 32], amount: u64) -> Result<()> {
-        instructions::deposit_sol::handler(ctx, id, amount)
+    pub fn deposit_native(ctx: Context<DepositNative>, id: [u8; 32], amount: u64) -> Result<()> {
+        instructions::deposit_native::handler(ctx, id, amount)
     }
 
     /// Forward SPL tokens from depositor directly to a whitelisted receiver.
     /// Uses balance-delta to support fee-on-transfer tokens.
-    pub fn deposit_spl(ctx: Context<DepositSpl>, id: [u8; 32], amount: u64) -> Result<()> {
-        instructions::deposit_spl::handler(ctx, id, amount)
+    /// Supports Token-2022 transfer hooks via remaining accounts.
+    pub fn deposit_token<'a>(ctx: Context<'_, '_, 'a, 'a, DepositToken<'a>>, id: [u8; 32], amount: u64) -> Result<()> {
+        instructions::deposit_token::handler(ctx, id, amount)
     }
 
     /// Create a WhitelistEntry PDA for the given receiver address.

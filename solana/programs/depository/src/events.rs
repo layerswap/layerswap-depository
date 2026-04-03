@@ -1,7 +1,7 @@
 use anchor_lang::prelude::*;
 
 /// Emitted on every successful deposit.
-/// mint = None for SOL deposits (mirrors token = address(0) on EVM).
+/// mint = None for SOL deposits.
 #[event]
 pub struct Deposited {
     pub id: [u8; 32],
@@ -31,3 +31,14 @@ pub struct Paused {}
 
 #[event]
 pub struct Unpaused {}
+
+#[event]
+pub struct AuthorityTransferInitiated {
+    pub new_authority: Pubkey,
+}
+
+#[event]
+pub struct AuthorityTransferAccepted {
+    pub old_authority: Pubkey,
+    pub new_authority: Pubkey,
+}
